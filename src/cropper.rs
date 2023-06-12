@@ -1,8 +1,10 @@
+use std::{thread, time};
 use super::{
     focuser,
     screengrab::{Rectangle, Screenshot},
 };
 use custom_error::custom_error;
+use winit
 use easer::functions::Easing;
 use glium::{
     self,
@@ -73,19 +75,19 @@ pub struct Cropper {
 impl Cropper {
     pub fn new() -> Result<Cropper, CropperError> {
         let events_loop = EventsLoop::new();
-
         let display = Display::new(
             WindowBuilder::new()
                 .with_title("Screenshot")
                 .with_visibility(false)
                 .with_always_on_top(true)
-                .with_decorations(false)
+                .with_decorations(true)
                 .with_resizable(false),
             ContextBuilder::new().with_vsync(true),
             &events_loop,
         )?;
 
-        Ok(Cropper {
+        let x = include_str!("shaders/full_quad_tex/140.vs");
+        let p = Cropper {
             // create a fullscreen quad VBO
             vbo: VertexBuffer::new(
                 &display,
@@ -123,10 +125,19 @@ impl Cropper {
 
             events_loop,
             display,
-        })
+        };
+        Ok(p)
     }
 
     pub fn apply(&mut self, snap: Screenshot) -> Result<bool, CropperError> {
+
+        // snap.copy_to_clipboard(Rectangle {
+        //     x: 0,
+        //     y: 0,
+        //     w: 2880,
+        //     h: 1800,
+        // });
+        // return Result::Ok(true);/\
         self.display
             .gl_window()
             .window()
@@ -184,6 +195,10 @@ impl Cropper {
 
         // main loop
         while !closed {
+            let ten_millis = time::Duration::from_millis(20);
+
+            thread::sleep(ten_millis);
+            // println!("into loop");
             context.delta = now.elapsed();
             now = Instant::now();
 
@@ -206,17 +221,17 @@ impl Cropper {
                     // kill process
                     WindowEvent::KeyboardInput {
                         input:
-                            KeyboardInput {
-                                virtual_keycode: Some(VirtualKeyCode::Q),
-                                state: ElementState::Pressed,
-                                modifiers:
-                                    ModifiersState {
-                                        ctrl: true,
-                                        shift: true,
-                                        ..
-                                    },
+                        KeyboardInput {
+                            virtual_keycode: Some(VirtualKeyCode::Q),
+                            state: ElementState::Pressed,
+                            modifiers:
+                            ModifiersState {
+                                ctrl: true,
+                                shift: true,
                                 ..
                             },
+                            ..
+                        },
                         ..
                     } => {
                         should_quit = true;
@@ -227,11 +242,11 @@ impl Cropper {
                     WindowEvent::CloseRequested
                     | WindowEvent::KeyboardInput {
                         input:
-                            KeyboardInput {
-                                virtual_keycode: Some(VirtualKeyCode::Escape),
-                                state: ElementState::Pressed,
-                                ..
-                            },
+                        KeyboardInput {
+                            virtual_keycode: Some(VirtualKeyCode::Escape),
+                            state: ElementState::Pressed,
+                            ..
+                        },
                         ..
                     } => {
                         // set region to None do cancel
@@ -334,23 +349,27 @@ impl Cropper {
         // clear to black
         frame.clear_color(0.0, 0.0, 0.0, 1.0);
 
+        // let opacity = easer::functions::Cubic::ease_out(
+        //     ctx.started.elapsed().as_millis().min(200) as f32,
+        //     1.0f32,
+        //     -0.5f32,
+        //     200.0f32,
+        // );
+        // println!("opacity={}", opacity);
         // base pass
         let uniforms = uniform! {
             tex: &ctx.snap_tex,
-            opacity: easer::functions::Cubic::ease_out(
-                ctx.started.elapsed().as_millis().min(200) as f32,
-                1.0f32,
-                -0.5f32,
-                200.0f32
-            ),
+            opacity: 0.4f32,
         };
-
+        // let indices = glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList);
+        // println!("{:?}", self.vbo);
         frame.draw(
             &self.vbo,
             &self.index_buffer,
             &self.programs.full_quad_tex,
             &uniforms,
             &draw_params,
+            // &Default::default(),
         )?;
 
         // active region pass
@@ -359,14 +378,17 @@ impl Cropper {
                 ctx.region_appear_time = Some(Instant::now());
             }
 
+
+            // let opacity = easer::functions::Cubic::ease_out(
+            //     ctx.region_appear_time.unwrap().elapsed().as_millis().min(200) as f32,
+            //     0.5f32,
+            //     0.5f32,
+            //     200.0f32,
+            // );
+            // println!("opacity={}", opacity);
             let uniforms = uniform! {
                 tex: &ctx.snap_tex,
-                opacity: easer::functions::Cubic::ease_out(
-                    ctx.region_appear_time.unwrap().elapsed().as_millis().min(200) as f32,
-                    0.5f32,
-                    0.5f32,
-                    200.0f32
-                ),
+                opacity: 1f32,
                 bounds: [
                     (areg.x as f32) / (ctx.snap.bounds.w as f32),
                     1.0 - (areg.y as f32) / (ctx.snap.bounds.h as f32),
@@ -374,6 +396,7 @@ impl Cropper {
                     -(areg.h as f32) / (ctx.snap.bounds.h as f32)
                 ],
             };
+
 
             frame.draw(
                 &self.vbo,

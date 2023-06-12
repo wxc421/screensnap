@@ -27,6 +27,7 @@ use winapi::{
         },
     },
 };
+use winapi::um::winuser::{GetDpiForSystem, SM_CXSCREEN, SM_CYSCREEN};
 
 // os-specific data
 #[derive(Debug)]
@@ -38,11 +39,19 @@ pub struct OsScreenshot {
 
 impl Screenshot {
     pub fn take() -> Self {
+        let dpi = unsafe { GetDpiForSystem() };
         // get virtual screen bounds (covers all monitors)
         let x = unsafe { GetSystemMetrics(SM_XVIRTUALSCREEN) };
         let y = unsafe { GetSystemMetrics(SM_YVIRTUALSCREEN) };
         let w = unsafe { GetSystemMetrics(SM_CXVIRTUALSCREEN) };
         let h = unsafe { GetSystemMetrics(SM_CYVIRTUALSCREEN) };
+
+        // let x = unsafe { GetSystemMetrics(SM_XVIRTUALSCREEN) };
+        // let y = unsafe { GetSystemMetrics(SM_YVIRTUALSCREEN) };
+        // let w = unsafe { GetSystemMetrics(SM_CXSCREEN) };
+        // let h = unsafe { GetSystemMetrics(SM_CYSCREEN) };
+        // let w = 2880;
+        // let h = 1800;
 
         // Add a newline
         if cfg!(debug_assertions) {
@@ -67,12 +76,12 @@ impl Screenshot {
             bmiColors: unsafe { std::mem::uninitialized() },
         };
 
+
         let h_screen = unsafe { GetDC(null_mut()) };
         let h_dc = unsafe { CreateCompatibleDC(h_screen) };
         let h_bitmap = unsafe { CreateCompatibleBitmap(h_screen, w, h) };
 
         let mut data = Vec::with_capacity((w * h * 3) as usize);
-
         unsafe {
             let old_obj = SelectObject(h_dc, h_bitmap as *mut c_void);
 
@@ -233,12 +242,12 @@ impl Screenshot {
             1
         }
 
-        unsafe {
-            EnumWindows(
-                Some(enum_windows_proc_callback),
-                &mut callback_data as *mut ProcCallbackData as LPARAM,
-            );
-        }
+        // unsafe {
+        //     EnumWindows(
+        //         Some(enum_windows_proc_callback),
+        //         &mut callback_data as *mut ProcCallbackData as LPARAM,
+        //     );
+        // }
 
         Screenshot {
             os: OsScreenshot {
@@ -255,7 +264,9 @@ impl Screenshot {
 
     pub fn copy_to_clipboard(&self, region: Rectangle<u32>) {
         unsafe {
+            // 创建一个兼容的BitMap
             let crop = CreateCompatibleBitmap(self.os.h_screen.0, region.w as i32, region.h as i32);
+            // 创建一个兼容的HDC
             let h_dc = CreateCompatibleDC(self.os.h_screen.0);
 
             let old_obj = SelectObject(h_dc, crop as *mut c_void);

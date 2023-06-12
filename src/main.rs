@@ -17,27 +17,36 @@ custom_error! { ScreenshotError
 
 fn main() -> Result<(), ScreenshotError> {
     // set the process to be DPI unaware
-    if cfg!(windows) {
-        unsafe {
-            winapi::um::shellscalingapi::SetProcessDpiAwareness(
-                winapi::um::shellscalingapi::PROCESS_DPI_UNAWARE,
-            );
-        }
-    }
+    // if cfg!(windows) {
+    //     unsafe {
+    //         winapi::um::shellscalingapi::SetProcessDpiAwareness(
+    //             winapi::um::shellscalingapi::PROCESS_DPI_UNAWARE,
+    //         );
+    //     }
+    // }
 
     // create the cropper
     let mut cropper = Cropper::new()?;
 
-    hotkey::register(true, || {
-        // get screenshot
-        match cropper.apply(Screenshot::take()) {
-            Err(e) => {
-                msgbox::error(&format!("{:?}", e));
-                true
-            }
-            Ok(should_quit) => should_quit,
+    // hotkey::register(true, || {
+    //     // get screenshot
+    //     match cropper.apply(Screenshot::take()) {
+    //         Err(e) => {
+    //             msgbox::error(&format!("{:?}", e));
+    //             true
+    //         }
+    //         Ok(should_quit) => should_quit,
+    //     }
+    // });
+    let a = match cropper.apply(Screenshot::take()) {
+        Err(e) => {
+            msgbox::error(&format!("{:?}", e));
+            true
         }
-    });
+        Ok(should_quit) => should_quit,
+    };
+
+    msgbox::error(&format!("{:?}", "aaaaaaa"));
 
     Ok(())
 }
